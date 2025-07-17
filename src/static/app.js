@@ -3,43 +3,59 @@ document.addEventListener("DOMContentLoaded", () => {
   const activitySelect = document.getElementById("activity");
   const signupForm = document.getElementById("signup-form");
   const messageDiv = document.getElementById("message");
+  const filterCategory = document.getElementById("filter-category");
+  const searchActivity = document.getElementById("search-activity");
+  const sortActivity = document.getElementById("sort-activity");
 
-  // Function to fetch activities from API
+  // Function to fetch activities from API with filters
   async function fetchActivities() {
     try {
-      const response = await fetch("/activities");
+      // Build query params
+      const params = [];
+      if (filterCategory && filterCategory.value) {
+        params.push(`category=${encodeURIComponent(filterCategory.value)}`);
+      }
+      if (searchActivity && searchActivity.value) {
+        params.push(`search=${encodeURIComponent(searchActivity.value)}`);
+      }
+      if (sortActivity && sortActivity.value) {
+        params.push(`sort=${encodeURIComponent(sortActivity.value)}`);
+      }
+      const query = params.length ? `?${params.join("&")}` : "";
+      const response = await fetch(`/activities${query}`);
       const activities = await response.json();
 
-      // Clear loading message
+      // Clear loading message and dropdown
       activitiesList.innerHTML = "";
+      activitySelect.innerHTML = '<option value="">-- Select an activity --</option>';
 
       // Populate activities list
-      Object.entries(activities).forEach(([name, details]) => {
+      activities.forEach((details) => {
         const activityCard = document.createElement("div");
         activityCard.className = "activity-card";
 
-        const spotsLeft =
-          details.max_participants - details.participants.length;
+        const spotsLeft = details.max_participants - details.participants.length;
 
         // Create participants HTML with delete icons instead of bullet points
         const participantsHTML =
           details.participants.length > 0
             ? `<div class="participants-section">
-              <h5>Participants:</h5>
-              <ul class="participants-list">
-                ${details.participants
-                  .map(
-                    (email) =>
-                      `<li><span class="participant-email">${email}</span><button class="delete-btn" data-activity="${name}" data-email="${email}">❌</button></li>`
-                  )
-                  .join("")}
-              </ul>
-            </div>`
+                <h5>Participants:</h5>
+                <ul class="participants-list">
+                  ${details.participants
+                    .map(
+                      (email) =>
+                        `<li><span class="participant-email">${email}</span><button class="delete-btn" data-activity="${details.name}" data-email="${email}">❌</button></li>`
+                    )
+                    .join("")}
+                </ul>
+              </div>`
             : `<p><em>No participants yet</em></p>`;
 
         activityCard.innerHTML = `
-          <h4>${name}</h4>
+          <h4>${details.name}</h4>
           <p>${details.description}</p>
+          <p><strong>Category:</strong> ${details.category || ""}</p>
           <p><strong>Schedule:</strong> ${details.schedule}</p>
           <p><strong>Availability:</strong> ${spotsLeft} spots left</p>
           <div class="participants-container">
@@ -51,8 +67,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
         // Add option to select dropdown
         const option = document.createElement("option");
-        option.value = name;
-        option.textContent = name;
+        option.value = details.name;
+        option.textContent = details.name;
         activitySelect.appendChild(option);
       });
 
@@ -154,6 +170,11 @@ document.addEventListener("DOMContentLoaded", () => {
       console.error("Error signing up:", error);
     }
   });
+
+  // Add event listeners for filters/search/sort
+  if (filterCategory) filterCategory.addEventListener("change", fetchActivities);
+  if (searchActivity) searchActivity.addEventListener("input", fetchActivities);
+  if (sortActivity) sortActivity.addEventListener("change", fetchActivities);
 
   // Initialize app
   fetchActivities();
